@@ -78,6 +78,7 @@ extension AppDelegate {
             && $0.title == "" && $0.frame == screen.frame })
         let controlCenterWindow = SCContext.availableContent!.applications.filter({ $0.bundleIdentifier == "com.apple.controlcenter" })
         let mouseWindow = SCContext.availableContent!.windows.filter({ $0.title == "Mouse Pointer".local && $0.owningApplication?.bundleIdentifier == Bundle.main.bundleIdentifier })
+        let cameraOverlayerWindow = SCContext.availableContent!.windows.filter({ $0.title == "Camera Overlayer".local && $0.owningApplication?.bundleIdentifier == Bundle.main.bundleIdentifier })
         var appBlackList = [String]()
         if let savedData = ud.data(forKey: "hiddenApps"),
            let decodedApps = try? JSONDecoder().decode([AppInfo].self, from: savedData) {
@@ -110,6 +111,7 @@ extension AppDelegate {
                 excluded += excliudedApps
                 if hideCCenter { excluded += controlCenterWindow }
                 if hideSelf { if let qrWindows = qrWindows { except += qrWindows }}
+                except += cameraOverlayerWindow
                 if background.rawValue != BackgroundType.wallpaper.rawValue { if dockApp != nil {
                     except += wallpaper
                     except += desktop
@@ -621,7 +623,9 @@ extension AppDelegate {
                 catch { assertionFailure("audio file writing issue".local) }
             } else {
                 if SCContext.lastPTS == nil { return }
-                if SCContext.awInput.isReadyForMoreMediaData { SCContext.awInput.append(SampleBuffer) }
+                if SCContext.vW.status == .writing && SCContext.awInput.isReadyForMoreMediaData {
+                    SCContext.awInput.append(SampleBuffer)
+                }
             }
 #if compiler(>=6.0)
         case .microphone:
