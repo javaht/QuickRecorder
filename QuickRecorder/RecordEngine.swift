@@ -667,7 +667,7 @@ extension AppDelegate {
         let y = outputExtent.minY + margin
         let cameraRect = CGRect(x: x, y: y, width: cameraSize, height: cameraSize)
 
-        let cameraSquare = centerCrop(image: cameraImage)
+        let cameraSquare = mirrorHorizontally(image: centerCrop(image: cameraImage))
         let scaledCamera = cameraSquare
             .transformed(by: CGAffineTransform(
                 scaleX: cameraSize / cameraSquare.extent.width,
@@ -701,6 +701,12 @@ extension AppDelegate {
             height: side
         )
         return image.cropped(to: cropRect).transformed(by: CGAffineTransform(translationX: -cropRect.minX, y: -cropRect.minY))
+    }
+
+    private func mirrorHorizontally(image: CIImage) -> CIImage {
+        return image
+            .transformed(by: CGAffineTransform(scaleX: -1, y: 1))
+            .transformed(by: CGAffineTransform(translationX: image.extent.width, y: 0))
     }
 
     private func radialMask(in rect: CGRect) -> CIImage {
