@@ -147,7 +147,6 @@ struct AreaSelector: View {
                             resizeView(screen: screen)
                         }.padding()
                     })
-                    CameraOptionButton()
                     Spacer()
                     OptionsView().padding(.horizontal, 10)
                     Spacer()

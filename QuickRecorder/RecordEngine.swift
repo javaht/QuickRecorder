@@ -662,12 +662,11 @@ extension AppDelegate {
         let cameraImage = CIImage(cvPixelBuffer: cameraPixelBuffer)
         let outputExtent = screenImage.extent
         let cameraSize = min(CGFloat(max(80, ud.double(forKey: "cameraOverlayWidth"))), min(outputExtent.width, outputExtent.height) / 2)
-        let margin: CGFloat = 24
-        let x = outputExtent.maxX - cameraSize - margin
-        let y = outputExtent.minY + margin
-        let cameraRect = CGRect(x: x, y: y, width: cameraSize, height: cameraSize)
+        let cameraOrigin = cameraOverlayOrigin(size: cameraSize, outputExtent: outputExtent)
+        let cameraRect = CGRect(origin: cameraOrigin, size: CGSize(width: cameraSize, height: cameraSize))
 
-        let cameraSquare = mirrorHorizontally(image: centerCrop(image: cameraImage))
+        let croppedCamera = centerCrop(image: cameraImage)
+        let cameraSquare = ud.bool(forKey: "cameraMirrored") ? mirrorHorizontally(image: croppedCamera) : croppedCamera
         let scaledCamera = cameraSquare
             .transformed(by: CGAffineTransform(
                 scaleX: cameraSize / cameraSquare.extent.width,
@@ -689,6 +688,33 @@ extension AppDelegate {
         SCContext.cameraCompositeContext.render(composited, to: outputPixelBuffer)
         let pts = CMSampleBufferGetPresentationTimeStamp(sampleBuffer)
         return adaptor.append(outputPixelBuffer, withPresentationTime: pts)
+    }
+
+    private func cameraOverlayOrigin(size: CGFloat, outputExtent: CGRect) -> CGPoint {
+        let margin: CGFloat = 24
+        guard let savedX = ud.object(forKey: "cameraOverlayX") as? Double,
+              let savedY = ud.object(forKey: "cameraOverlayY") as? Double else {
+            return CGPoint(x: outputExtent.maxX - size - margin, y: outputExtent.minY + margin)
+        }
+
+        var sourceFrame = SCContext.screen?.frame ?? SCContext.getScreenWithMouse()?.frame ?? .zero
+        if SCContext.streamType == .screenarea, let screenArea = SCContext.screenArea {
+            sourceFrame = screenArea
+        }
+
+        guard sourceFrame.width > 0, sourceFrame.height > 0 else {
+            return CGPoint(x: outputExtent.maxX - size - margin, y: outputExtent.minY + margin)
+        }
+
+        let scaleX = outputExtent.width / sourceFrame.width
+        let scaleY = outputExtent.height / sourceFrame.height
+        let mappedX = outputExtent.minX + (CGFloat(savedX) - sourceFrame.minX) * scaleX
+        let mappedY = outputExtent.minY + (CGFloat(savedY) - sourceFrame.minY) * scaleY
+        let minX = outputExtent.minX + margin
+        let maxX = outputExtent.maxX - size - margin
+        let minY = outputExtent.minY + margin
+        let maxY = outputExtent.maxY - size - margin
+        return CGPoint(x: min(max(mappedX, minX), maxX), y: min(max(mappedY, minY), maxY))
     }
 
     private func centerCrop(image: CIImage) -> CIImage {

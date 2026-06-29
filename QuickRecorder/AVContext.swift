@@ -10,23 +10,43 @@ import AVFoundation
 import UserNotifications
 
 extension AppDelegate {
-    func ensureRecordingCameraRunning() {
-        guard ud.bool(forKey: "recordCameraEnabled") else { return }
+    private func selectedCamera(from cameras: [AVCaptureDevice]) -> AVCaptureDevice? {
+        let savedCamera = ud.string(forKey: "recordCameraDevice") ?? ""
+        return cameras.first(where: { $0.uniqueID == savedCamera })
+            ?? cameras.first(where: { $0.localizedName == savedCamera })
+            ?? cameras.first(where: { $0.localizedName == SCContext.recordCam })
+            ?? cameras.first
+    }
+
+    func startCameraPreviewForSettings() {
         if SCContext.isCameraRunning() {
+            startCameraOverlayer()
             return
         }
         let cameras = SCContext.getCameras()
-        let savedCamera = ud.string(forKey: "recordCameraDevice") ?? SCContext.recordCam
-        guard let camera = cameras.first(where: { $0.localizedName == savedCamera }) ?? cameras.first else {
+        guard let camera = selectedCamera(from: cameras) else { return }
+        SCContext.recordCam = camera.localizedName
+        ud.set(camera.uniqueID, forKey: "recordCameraDevice")
+        recordingCamera(with: camera)
+    }
+
+    func ensureRecordingCameraRunning(showOverlay: Bool = true) {
+        guard ud.bool(forKey: "recordCameraEnabled") else { return }
+        if SCContext.isCameraRunning() {
+            if showOverlay { startCameraOverlayer() }
+            return
+        }
+        let cameras = SCContext.getCameras()
+        guard let camera = selectedCamera(from: cameras) else {
             ud.set(false, forKey: "recordCameraEnabled")
             return
         }
         SCContext.recordCam = camera.localizedName
-        ud.set(camera.localizedName, forKey: "recordCameraDevice")
-        recordingCamera(with: camera)
+        ud.set(camera.uniqueID, forKey: "recordCameraDevice")
+        recordingCamera(with: camera, showOverlay: showOverlay)
     }
 
-    func recordingCamera(with device: AVCaptureDevice) {
+    func recordingCamera(with device: AVCaptureDevice, showOverlay: Bool = true) {
         SCContext.captureSession = AVCaptureSession()
         
         guard let input = try? AVCaptureDeviceInput(device: device),
@@ -47,7 +67,9 @@ extension AppDelegate {
         }
         
         SCContext.captureSession.startRunning()
-        DispatchQueue.main.async { self.startCameraOverlayer() }
+        if showOverlay {
+            DispatchQueue.main.async { self.startCameraOverlayer() }
+        }
     }
     
     func closeCamera() {

@@ -115,7 +115,6 @@ struct AppSelector: View {
                         }
                         
                     }).buttonStyle(.plain)
-                    CameraOptionButton()
                     Spacer()
                     OptionsView().padding(.leading, 18)
                     Spacer()
@@ -202,6 +201,7 @@ class AppSelectorViewModel: ObservableObject {
 }
 
 struct OptionsView: View {
+    var cameraDisabled = false
     @State private var micList = SCContext.getMicrophone()
     
     @AppStorage("frameRate")      private var frameRate: Int = 60
@@ -216,6 +216,7 @@ struct OptionsView: View {
     @AppStorage("recordHDR")      private var recordHDR: Bool = false
     @AppStorage("micDevice")      private var micDevice: String = "default"
     @AppStorage("enableAEC")      private var enableAEC: Bool = false
+    @AppStorage("recordCameraEnabled") private var recordCameraEnabled: Bool = false
     
     var body: some View {
         VStack(spacing: 6) {
@@ -280,6 +281,7 @@ struct OptionsView: View {
                 }.scaledToFit()
                 Divider().frame(height: 50)
                 VStack(alignment: .leading, spacing: isMacOS12 ? 10 : 2) {
+                    CameraOptionToggle(disabled: cameraDisabled)
                     if #available(macOS 15, *) {
                         Toggle(isOn: $recordHDR) {
                             HStack(spacing:0){
@@ -359,6 +361,10 @@ struct OptionsView: View {
                     }
                 }.padding(.trailing, isMacOS12 ? 0 : -17)
             }
+        }
+        .onAppear {
+            recordCameraEnabled = false
+            if camWindow.isVisible { AppDelegate.shared.closeCamera() }
         }
     }
 }

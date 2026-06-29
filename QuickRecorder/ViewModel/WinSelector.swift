@@ -162,7 +162,6 @@ struct WinSelector: View {
                         }
                         
                     }).buttonStyle(.plain)
-                    CameraOptionButton(disabled: selected.count == 1)
                     Button(action: {
                         isPopoverShowing2 = true
                     }, label: {
@@ -191,7 +190,7 @@ struct WinSelector: View {
                         .padding()
                     })
                     Spacer()
-                    OptionsView()
+                    OptionsView(cameraDisabled: selected.count == 1)
                     Spacer()
                     Button(action: {
                         isPopoverShowing = true

@@ -40,6 +40,7 @@ extension AppDelegate {
         camWindow.contentView?.wantsLayer = true
         camWindow.contentView?.layer?.cornerRadius = size.width / 2
         camWindow.contentView?.layer?.masksToBounds = true
+        camWindow.level = ud.bool(forKey: "recordCameraEnabled") ? .screenSaver : .floating
         camWindow.orderFront(self)
     }
 
@@ -241,7 +242,7 @@ struct CameraPopoverView: View {
                     }
                     recordCameraEnabled = true
                     SCContext.recordCam = cameras[index].localizedName
-                    ud.set(cameras[index].localizedName, forKey: "recordCameraDevice")
+                    ud.set(cameras[index].uniqueID, forKey: "recordCameraDevice")
                     appDelegate.closeCamera()
                     appDelegate.recordingCamera(with: cameras[index])
                 }, label: {
@@ -321,36 +322,55 @@ struct CameraPopoverView: View {
             return
         }
         SCContext.recordCam = camera.localizedName
-        ud.set(camera.localizedName, forKey: "recordCameraDevice")
+        ud.set(camera.uniqueID, forKey: "recordCameraDevice")
         appDelegate.closeCamera()
         appDelegate.recordingCamera(with: camera)
     }
 }
 
-struct CameraOptionButton: View {
+struct CameraOptionToggle: View {
     var disabled = false
-    @State private var isPopoverShowing = false
     @AppStorage("recordCameraEnabled") private var recordCameraEnabled = false
 
     var body: some View {
-        Button(action: {
-            isPopoverShowing = true
-        }, label: {
-            VStack{
-                Image(systemName: recordCameraEnabled ? "camera.fill" : "camera")
-                    .font(.system(size: 32, weight: .semibold))
-                    .foregroundStyle(recordCameraEnabled && !disabled ? .blue : .secondary)
-                Text("Camera".local)
-                    .foregroundStyle(.secondary)
-                    .font(.system(size: 12))
+        Toggle(isOn: Binding(
+            get: { recordCameraEnabled },
+            set: { enabled in
+                recordCameraEnabled = enabled
+                if enabled {
+                    AppDelegate.shared.ensureRecordingCameraRunning(showOverlay: false)
+                } else {
+                    SCContext.recordCam = ""
+                    AppDelegate.shared.closeCamera()
+                }
             }
-            .frame(width: 72)
-        })
-        .buttonStyle(.plain)
+        )) {
+            HStack(spacing: 0) {
+                Image(systemName: "camera.fill")
+                    .font(isMacOS12 ? .body : .subheadline)
+                    .frame(width: isMacOS12 ? 20 : 16)
+                Text("Enable Camera")
+                    .font(isMacOS12 ? .body : .subheadline)
+            }
+        }
+        .toggleStyle(.checkbox)
         .disabled(disabled)
-        .help(disabled ? "Unable to use camera overlayer when recording a single window!".local : "Camera".local)
-        .popover(isPresented: $isPopoverShowing, arrowEdge: .bottom) {
-            CameraPopoverView(closePopover: { isPopoverShowing = false })
+        .help(disabled ? "Unable to use camera overlayer when recording a single window!".local : "Enable Camera".local)
+    }
+}
+
+struct CameraSelectionPreviewOverlay: View {
+    @AppStorage("recordCameraEnabled") private var recordCameraEnabled = false
+    var diameter: CGFloat
+
+    var body: some View {
+        if recordCameraEnabled && SCContext.isCameraRunning() {
+            SwiftCameraView(type: .camera)
+                .frame(width: diameter, height: diameter)
+                .clipShape(Circle())
+                .shadow(radius: 8)
+                .overlay(Circle().stroke(.white.opacity(0.85), lineWidth: 2))
+                .allowsHitTesting(false)
         }
     }
 }
