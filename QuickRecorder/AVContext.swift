@@ -10,18 +10,36 @@ import AVFoundation
 import UserNotifications
 
 extension AppDelegate {
+    func ensureRecordingCameraRunning() {
+        guard ud.bool(forKey: "recordCameraEnabled") else { return }
+        if SCContext.isCameraRunning() {
+            return
+        }
+        let cameras = SCContext.getCameras()
+        let savedCamera = ud.string(forKey: "recordCameraDevice") ?? SCContext.recordCam
+        guard let camera = cameras.first(where: { $0.localizedName == savedCamera }) ?? cameras.first else {
+            ud.set(false, forKey: "recordCameraEnabled")
+            return
+        }
+        SCContext.recordCam = camera.localizedName
+        ud.set(camera.localizedName, forKey: "recordCameraDevice")
+        recordingCamera(with: camera)
+    }
+
     func recordingCamera(with device: AVCaptureDevice) {
         SCContext.captureSession = AVCaptureSession()
         
         guard let input = try? AVCaptureDeviceInput(device: device),
               SCContext.captureSession.canAddInput(input) else {
             print("Failed to set up camera")
+            ud.set(false, forKey: "recordCameraEnabled")
             SCContext.requestCameraPermission()
             return
         }
         SCContext.captureSession.addInput(input)
         
         let videoOutput = AVCaptureVideoDataOutput()
+        videoOutput.videoSettings = [kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA]
         videoOutput.setSampleBufferDelegate(self, queue: .global())
         
         if SCContext.captureSession.canAddOutput(videoOutput) {
@@ -35,17 +53,20 @@ extension AppDelegate {
     func closeCamera() {
         if SCContext.isCameraRunning() {
             //SCContext.previewType = nil
+            saveCameraOverlayerPosition()
             if camWindow.isVisible { camWindow.close() }
             SCContext.captureSession.stopRunning()
         }
+        SCContext.cameraFrameQueue.sync { SCContext.cameraFrameCache = nil }
     }
     
     func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
-        /* 保留后续以作他用
-        if !SCContext.isPaused && ud.string(forKey: "recordCam") != "" {
-            if sampleBuffer.isValid { SCContext.isCameraReady = true }
-            if sampleBuffer.imageBuffer != nil { SCContext.frameCache = sampleBuffer }
-        }*/
+        guard ud.bool(forKey: "recordCameraEnabled"), sampleBuffer.isValid,
+              let imageBuffer = sampleBuffer.imageBuffer else { return }
+        SCContext.cameraFrameQueue.sync {
+            SCContext.cameraFrameCache = imageBuffer
+        }
+        isCameraReady = true
     }
 }
 

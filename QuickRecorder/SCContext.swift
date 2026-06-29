@@ -23,6 +23,8 @@ class SCContext {
     static var captureSession: AVCaptureSession!
     static var previewSession: AVCaptureSession!
     static var frameCache: CMSampleBuffer?
+    static var cameraFrameCache: CVPixelBuffer?
+    static let cameraFrameQueue = DispatchQueue(label: "quickrecorder.camera.frame")
     static var filter: SCContentFilter?
     static var isMagnifierEnabled = false
     static var saveFrame = false
@@ -42,6 +44,8 @@ class SCContext {
     static var audioFile2: AVAudioFile?
     static var vW: AVAssetWriter!
     static var vwInput, awInput, micInput: AVAssetWriterInput!
+    static var videoPixelBufferAdaptor: AVAssetWriterInputPixelBufferAdaptor?
+    static let cameraCompositeContext = CIContext(options: nil)
     static var startTime: Date?
     static var timePassed: TimeInterval = 0
     static var stream: SCStream!
@@ -249,7 +253,6 @@ class SCContext {
             if alert.runModal() == .alertFirstButtonReturn {
                 NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture")!)
             }
-            NSApp.terminate(self)
         }
     }
     
@@ -332,6 +335,7 @@ class SCContext {
         lastPTS = nil
         recordCam = ""
         recordDevice = ""
+        cameraFrameQueue.sync { cameraFrameCache = nil }
         isMagnifierEnabled = false
         mousePointer.orderOut(nil)
         screenMagnifier.orderOut(nil)

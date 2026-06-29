@@ -147,7 +147,7 @@ struct WinSelector: View {
                         }
                     }
                 }
-                HStack(spacing: 4) {
+                HStack(spacing: 14) {
                     Button(action: {
                         self.viewModel.setupStreams(filter: !disableFilter, capture: !donotCapture)
                         self.selected.removeAll()
@@ -162,6 +162,7 @@ struct WinSelector: View {
                         }
                         
                     }).buttonStyle(.plain)
+                    CameraOptionButton(disabled: selected.count == 1)
                     Button(action: {
                         isPopoverShowing2 = true
                     }, label: {

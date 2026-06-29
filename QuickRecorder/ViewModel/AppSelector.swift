@@ -101,7 +101,7 @@ struct AppSelector: View {
                         }
                     }
                 }
-                HStack(spacing: 4) {
+                HStack(spacing: 14) {
                     Button(action: {
                         viewModel.updateAppList()
                     }, label: {
@@ -115,6 +115,7 @@ struct AppSelector: View {
                         }
                         
                     }).buttonStyle(.plain)
+                    CameraOptionButton()
                     Spacer()
                     OptionsView().padding(.leading, 18)
                     Spacer()

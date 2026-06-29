@@ -10,17 +10,51 @@ import AppKit
 import Foundation
 import AVFoundation
 
+private let cameraWindowDelegate = CameraWindowDelegate()
+
+private class CameraWindowDelegate: NSObject, NSWindowDelegate {
+    func windowDidMove(_ notification: Notification) {
+        guard notification.object as? NSWindow == camWindow else { return }
+        AppDelegate.shared.saveCameraOverlayerPosition()
+    }
+}
+
 extension AppDelegate {
-    func startCameraOverlayer(size: NSSize = NSSize(width: 200, height: 200)){
+    func startCameraOverlayer(size: NSSize? = nil){
         guard let screen = SCContext.getScreenWithMouse() else { return }
+        let savedWidth = ud.double(forKey: "cameraOverlayWidth")
+        let width = size?.width ?? (savedWidth > 0 ? savedWidth : 200)
+        let height = size?.height ?? width
+        let size = NSSize(width: width, height: height)
         camWindow.contentView = NSHostingView(rootView: SwiftCameraView(type: .camera))
-        let frame = NSRect(x: (screen.visibleFrame.width-size.width)/2+screen.frame.minX, y: (screen.visibleFrame.height-size.height)/2+screen.frame.minY, width: size.width, height: size.height)
+        let savedX = ud.object(forKey: "cameraOverlayX") as? Double
+        let savedY = ud.object(forKey: "cameraOverlayY") as? Double
+        let origin = NSPoint(
+            x: savedX ?? (screen.visibleFrame.width-size.width)/2+screen.frame.minX,
+            y: savedY ?? (screen.visibleFrame.height-size.height)/2+screen.frame.minY
+        )
+        let frame = NSRect(origin: origin, size: size)
         camWindow.setFrame(frame, display: true)
+        camWindow.delegate = cameraWindowDelegate
         //camWindow.setFrameOrigin(NSPoint(x: screen.visibleFrame.width/2-100, y: screen.visibleFrame.height/2-100))
         camWindow.contentView?.wantsLayer = true
-        camWindow.contentView?.layer?.cornerRadius = 5
+        camWindow.contentView?.layer?.cornerRadius = size.width / 2
         camWindow.contentView?.layer?.masksToBounds = true
         camWindow.orderFront(self)
+    }
+
+    func resizeCameraOverlayer(width: Double) {
+        guard camWindow.isVisible else { return }
+        let frame = NSRect(x: camWindow.frame.origin.x, y: camWindow.frame.origin.y, width: width, height: width)
+        camWindow.setFrame(frame, display: true)
+        camWindow.contentView?.layer?.cornerRadius = width / 2
+        saveCameraOverlayerPosition()
+    }
+
+    func saveCameraOverlayerPosition() {
+        guard camWindow.isVisible else { return }
+        ud.set(camWindow.frame.origin.x, forKey: "cameraOverlayX")
+        ud.set(camWindow.frame.origin.y, forKey: "cameraOverlayY")
     }
 }
 
@@ -142,11 +176,46 @@ struct CameraPopoverView: View {
     @State private var hoverIndex = -1
     @State private var hoverIndex2 = -1
     @State private var disabled = false
+    @AppStorage("recordCameraEnabled") private var recordCameraEnabled = false
+    @AppStorage("cameraOverlayWidth") private var cameraOverlayWidth = 200.0
     //@NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     var appDelegate = AppDelegate.shared
     
     var body: some View {
         VStack( alignment: .leading, spacing: 0) {
+            Toggle(isOn: Binding(
+                get: { recordCameraEnabled },
+                set: { enabled in
+                    recordCameraEnabled = enabled
+                    if enabled {
+                        startSelectedCamera()
+                    } else {
+                        SCContext.recordCam = ""
+                        appDelegate.closeCamera()
+                    }
+                }
+            )) {
+                Text("Record Camera".local)
+            }
+            .padding(.horizontal, 9)
+            .padding(.vertical, 6)
+            .disabled(cameras.isEmpty)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Camera Size".local + ": \(Int(cameraOverlayWidth))")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Slider(value: $cameraOverlayWidth, in: 120...480, step: 10)
+                    .onChange(of: cameraOverlayWidth) { newValue in
+                        appDelegate.resizeCameraOverlayer(width: newValue)
+                    }
+            }
+            .padding(.horizontal, 9)
+            .padding(.bottom, 6)
+            .disabled(!recordCameraEnabled)
+
+            Divider().padding(.vertical, 4)
+
             if cameras.count < 1 {
                 HStack {
                     ZStack {
@@ -166,10 +235,13 @@ struct CameraPopoverView: View {
                     closePopover()
                     if SCContext.recordCam == cameras[index].localizedName {
                         SCContext.recordCam = ""
+                        recordCameraEnabled = false
                         appDelegate.closeCamera()
                         return
                     }
+                    recordCameraEnabled = true
                     SCContext.recordCam = cameras[index].localizedName
+                    ud.set(cameras[index].localizedName, forKey: "recordCameraDevice")
                     appDelegate.closeCamera()
                     appDelegate.recordingCamera(with: cameras[index])
                 }, label: {
@@ -241,5 +313,44 @@ struct CameraPopoverView: View {
                 }
             }
         }.padding(5)
+    }
+
+    private func startSelectedCamera() {
+        guard let camera = cameras.first(where: { $0.localizedName == SCContext.recordCam }) ?? cameras.first else {
+            recordCameraEnabled = false
+            return
+        }
+        SCContext.recordCam = camera.localizedName
+        ud.set(camera.localizedName, forKey: "recordCameraDevice")
+        appDelegate.closeCamera()
+        appDelegate.recordingCamera(with: camera)
+    }
+}
+
+struct CameraOptionButton: View {
+    var disabled = false
+    @State private var isPopoverShowing = false
+    @AppStorage("recordCameraEnabled") private var recordCameraEnabled = false
+
+    var body: some View {
+        Button(action: {
+            isPopoverShowing = true
+        }, label: {
+            VStack{
+                Image(systemName: recordCameraEnabled ? "camera.fill" : "camera")
+                    .font(.system(size: 32, weight: .semibold))
+                    .foregroundStyle(recordCameraEnabled && !disabled ? .blue : .secondary)
+                Text("Camera".local)
+                    .foregroundStyle(.secondary)
+                    .font(.system(size: 12))
+            }
+            .frame(width: 72)
+        })
+        .buttonStyle(.plain)
+        .disabled(disabled)
+        .help(disabled ? "Unable to use camera overlayer when recording a single window!".local : "Camera".local)
+        .popover(isPresented: $isPopoverShowing, arrowEdge: .bottom) {
+            CameraPopoverView(closePopover: { isPopoverShowing = false })
+        }
     }
 }

@@ -416,6 +416,7 @@ func closeAllWindow(except: String = "") {
     for w in NSApp.windows.filter({
         $0.title != "Item-0" && $0.title != ""
         && !$0.title.lowercased().contains(".qma")
+        && $0.title != "Camera Overlayer".local
         && !$0.title.contains(except) }) { w.close() }
 }
 

@@ -89,7 +89,7 @@ struct AreaSelector: View {
             Color(nsColor: NSColor.windowBackgroundColor)
                 .cornerRadius(10)
             VStack {
-                HStack(spacing: 6) {
+                HStack(spacing: 14) {
                     Spacer()
                     Button(action: {
                         nsWindow?.close()
@@ -147,6 +147,7 @@ struct AreaSelector: View {
                             resizeView(screen: screen)
                         }.padding()
                     })
+                    CameraOptionButton()
                     Spacer()
                     OptionsView().padding(.horizontal, 10)
                     Spacer()

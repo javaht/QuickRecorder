@@ -91,7 +91,7 @@ struct ScreenSelector: View {
                 }
                 .frame(height: 445)
                 
-                HStack(spacing: 4) {
+                HStack(spacing: 14) {
                     Button(action: {
                         viewModel.setupStreams()
                     }, label: {
@@ -105,6 +105,7 @@ struct ScreenSelector: View {
                         }
                         
                     }).buttonStyle(.plain)
+                    CameraOptionButton()
                     Spacer()
                     OptionsView().padding(.leading, 18)
                     Spacer()
