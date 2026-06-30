@@ -78,10 +78,19 @@ jobs:
           set -euo pipefail
           app_path="build/DerivedData/Build/Products/Release/QuickRecorder.app"
           artifact="${{ steps.release.outputs.artifact_name }}"
+          dmg_path="dist/$artifact.dmg"
           test -d "$app_path"
-          mkdir -p dist
-          ditto -c -k --sequesterRsrc --keepParent "$app_path" "dist/$artifact.zip"
-          shasum -a 256 "dist/$artifact.zip" > "dist/$artifact.zip.sha256"
+          rm -rf dist dmg-root
+          mkdir -p dist dmg-root
+          cp -R "$app_path" dmg-root/
+          ln -s /Applications dmg-root/Applications
+          hdiutil create \
+            -volname "QuickRecorder" \
+            -srcfolder dmg-root \
+            -ov \
+            -format UDZO \
+            "$dmg_path"
+          shasum -a 256 "$dmg_path" > "$dmg_path.sha256"
           ls -lh dist
 
       - name: Upload workflow artifact
@@ -89,8 +98,8 @@ jobs:
         with:
           name: ${{ steps.release.outputs.artifact_name }}
           path: |
-            dist/${{ steps.release.outputs.artifact_name }}.zip
-            dist/${{ steps.release.outputs.artifact_name }}.zip.sha256
+            dist/${{ steps.release.outputs.artifact_name }}.dmg
+            dist/${{ steps.release.outputs.artifact_name }}.dmg.sha256
 
       - name: Publish GitHub Release
         env:
@@ -105,8 +114,8 @@ jobs:
             git push origin "$tag"
           fi
           gh release create "$tag" \
-            "dist/$artifact.zip" \
-            "dist/$artifact.zip.sha256" \
+            "dist/$artifact.dmg" \
+            "dist/$artifact.dmg.sha256" \
             --title "$tag" \
             --notes "Automated release for $tag" \
             --verify-tag
