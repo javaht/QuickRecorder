@@ -20,14 +20,14 @@ extension AppDelegate {
 
     func startCameraPreviewForSettings() {
         if SCContext.isCameraRunning() {
-            startCameraOverlayer()
+            startCameraOverlayer(showsControls: false)
             return
         }
         let cameras = SCContext.getCameras()
         guard let camera = selectedCamera(from: cameras) else { return }
         SCContext.recordCam = camera.localizedName
         ud.set(camera.uniqueID, forKey: "recordCameraDevice")
-        recordingCamera(with: camera)
+        recordingCamera(with: camera, showsControls: false)
     }
 
     func ensureRecordingCameraRunning(showOverlay: Bool = true) {
@@ -46,7 +46,7 @@ extension AppDelegate {
         recordingCamera(with: camera, showOverlay: showOverlay)
     }
 
-    func recordingCamera(with device: AVCaptureDevice, showOverlay: Bool = true) {
+    func recordingCamera(with device: AVCaptureDevice, showOverlay: Bool = true, showsControls: Bool = true) {
         SCContext.captureSession = AVCaptureSession()
         
         guard let input = try? AVCaptureDeviceInput(device: device),
@@ -68,15 +68,15 @@ extension AppDelegate {
         
         SCContext.captureSession.startRunning()
         if showOverlay {
-            DispatchQueue.main.async { self.startCameraOverlayer() }
+            DispatchQueue.main.async { self.startCameraOverlayer(showsControls: showsControls) }
         }
     }
     
     func closeCamera() {
+        saveCameraOverlayerPosition()
+        if camWindow.isVisible { camWindow.close() }
         if SCContext.isCameraRunning() {
             //SCContext.previewType = nil
-            saveCameraOverlayerPosition()
-            if camWindow.isVisible { camWindow.close() }
             SCContext.captureSession.stopRunning()
         }
         SCContext.cameraFrameQueue.sync { SCContext.cameraFrameCache = nil }

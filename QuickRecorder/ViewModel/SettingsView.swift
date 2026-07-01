@@ -193,7 +193,9 @@ struct RecorderView: View {
                             isCameraPreviewVisible = false
                         } else {
                             AppDelegate.shared.startCameraPreviewForSettings()
-                            isCameraPreviewVisible = SCContext.isCameraRunning() && camWindow.isVisible
+                            DispatchQueue.main.async {
+                                isCameraPreviewVisible = SCContext.isCameraRunning() && camWindow.isVisible
+                            }
                         }
                     }
                 }

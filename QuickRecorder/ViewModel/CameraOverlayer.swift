@@ -15,18 +15,19 @@ private let cameraWindowDelegate = CameraWindowDelegate()
 private class CameraWindowDelegate: NSObject, NSWindowDelegate {
     func windowDidMove(_ notification: Notification) {
         guard notification.object as? NSWindow == camWindow else { return }
+        AppDelegate.shared.keepCameraOverlayerOnScreen()
         AppDelegate.shared.saveCameraOverlayerPosition()
     }
 }
 
 extension AppDelegate {
-    func startCameraOverlayer(size: NSSize? = nil){
+    func startCameraOverlayer(size: NSSize? = nil, showsControls: Bool = true){
         guard let screen = SCContext.getScreenWithMouse() else { return }
         let savedWidth = ud.double(forKey: "cameraOverlayWidth")
         let width = size?.width ?? (savedWidth > 0 ? savedWidth : 200)
         let height = size?.height ?? width
         let size = NSSize(width: width, height: height)
-        camWindow.contentView = NSHostingView(rootView: SwiftCameraView(type: .camera))
+        camWindow.contentView = NSHostingView(rootView: SwiftCameraView(type: .camera, showsControls: showsControls))
         let savedX = ud.object(forKey: "cameraOverlayX") as? Double
         let savedY = ud.object(forKey: "cameraOverlayY") as? Double
         let origin = NSPoint(
@@ -42,6 +43,7 @@ extension AppDelegate {
         camWindow.contentView?.layer?.masksToBounds = true
         camWindow.level = ud.bool(forKey: "recordCameraEnabled") ? .screenSaver : .floating
         camWindow.orderFront(self)
+        keepCameraOverlayerOnScreen()
     }
 
     func resizeCameraOverlayer(width: Double) {
@@ -56,6 +58,19 @@ extension AppDelegate {
         guard camWindow.isVisible else { return }
         ud.set(camWindow.frame.origin.x, forKey: "cameraOverlayX")
         ud.set(camWindow.frame.origin.y, forKey: "cameraOverlayY")
+    }
+
+    func keepCameraOverlayerOnScreen() {
+        guard camWindow.isVisible else { return }
+        let frame = camWindow.frame
+        guard let screen = NSScreen.screens.first(where: { $0.frame.intersects(frame) }) ?? SCContext.getScreenWithMouse() else { return }
+        let visibleFrame = screen.visibleFrame
+        let x = min(max(frame.origin.x, visibleFrame.minX), visibleFrame.maxX - frame.width)
+        let y = min(max(frame.origin.y, visibleFrame.minY), visibleFrame.maxY - frame.height)
+        let origin = NSPoint(x: x, y: y)
+        if origin != frame.origin {
+            camWindow.setFrameOrigin(origin)
+        }
     }
 }
 
@@ -114,6 +129,7 @@ class CameraNSView: NSView {
 
 struct SwiftCameraView: View {
     var type: StreamType!
+    var showsControls = true
     @State private var hover = false
     @State private var isFlipped = false
     
@@ -128,28 +144,30 @@ struct SwiftCameraView: View {
                 ZStack(alignment: Alignment(horizontal: .trailing, vertical: .bottom)) {
                     CameraView(type: type)
                         .rotation3DEffect(.degrees(isFlipped ? 180 : 0), axis: (x: 0, y: 1, z: 0))
-                    Button(action: {
-                        if type == .idevice {
-                            for w in NSApp.windows.filter({ $0.title == "iDevice Overlayer".local }) { w.close() }
-                        } else {
-                            isFlipped.toggle()
-                        }
-                    }, label: {
-                        ZStack {
-                            Circle().frame(width: 30)
-                                .foregroundStyle(hover ? .blue : .gray)
+                    if showsControls {
+                        Button(action: {
                             if type == .idevice {
-                                Image(systemName: "xmark")
-                                    .foregroundStyle(.white)
+                                for w in NSApp.windows.filter({ $0.title == "iDevice Overlayer".local }) { w.close() }
                             } else {
-                                Image(systemName: "arrow.left.and.right.righttriangle.left.righttriangle.right.fill")
-                                    .foregroundStyle(.white)
-                                    .offset(y: -1)
+                                isFlipped.toggle()
                             }
-                        }
-                        .opacity(hover ? 0.8 : 0.2)
-                        .onHover{ hovering in hover = hovering }
-                    }).buttonStyle(.plain).padding(10)
+                        }, label: {
+                            ZStack {
+                                Circle().frame(width: 30)
+                                    .foregroundStyle(hover ? .blue : .gray)
+                                if type == .idevice {
+                                    Image(systemName: "xmark")
+                                        .foregroundStyle(.white)
+                                } else {
+                                    Image(systemName: "arrow.left.and.right.righttriangle.left.righttriangle.right.fill")
+                                        .foregroundStyle(.white)
+                                        .offset(y: -1)
+                                }
+                            }
+                            .opacity(hover ? 0.8 : 0.2)
+                            .onHover{ hovering in hover = hovering }
+                        }).buttonStyle(.plain).padding(10)
+                    }
                 }.frame(width: geometry.size.width, height: geometry.size.height)
                 if SCContext.streamType == .window {
                     Text("Unable to use camera overlayer when recording a single window!".local

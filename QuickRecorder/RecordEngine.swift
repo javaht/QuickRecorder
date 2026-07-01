@@ -88,7 +88,8 @@ extension AppDelegate {
         
         if SCContext.streamType == .window || SCContext.streamType == .windows {
             if var includ = SCContext.window {
-                if includ.count > 1 {
+                if includ.count > 1 || ud.bool(forKey: "recordCameraEnabled") {
+                    if ud.bool(forKey: "recordCameraEnabled") { SCContext.streamType = .windows }
                     if highlightMouse { includ += mouseWindow }
                     if background.rawValue == BackgroundType.wallpaper.rawValue { if dockApp != nil { includ += wallpaper }}
                     SCContext.filter = SCContentFilter(display: screen, including: includ)
@@ -127,6 +128,7 @@ extension AppDelegate {
                 let withFinder = includ.map{ $0.bundleIdentifier }.contains("com.apple.finder")
                 if withFinder && hideDesktopFiles { except += desktopFiles }
                 if hideSelf { if let qrWindows = qrWindows { except += qrWindows }}
+                except += cameraOverlayerWindow
                 //if ud.bool(forKey: "highlightMouse") { if let qrSelf = qrSelf { includ.append(qrSelf) }}
                 if background.rawValue == BackgroundType.wallpaper.rawValue { if let dock = dockApp { includ.append(dock); except += dockWindow}}
                 SCContext.filter = SCContentFilter(display: screen, including: includ, exceptingWindows: except)

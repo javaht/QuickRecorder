@@ -190,7 +190,7 @@ struct WinSelector: View {
                         .padding()
                     })
                     Spacer()
-                    OptionsView(cameraDisabled: selected.count == 1)
+                    OptionsView()
                     Spacer()
                     Button(action: {
                         isPopoverShowing = true
