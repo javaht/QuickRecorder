@@ -221,6 +221,7 @@
 "Camera" = "摄像头";
 "Mirror Camera" = "开启前置镜像";
 "Camera Device" = "摄像头设备";
+"Camera Position" = "摄像头位置";
 "Camera Size" = "摄像头大小";
 "Position" = "位置";
 "Show Preview to Adjust Position" = "预览";

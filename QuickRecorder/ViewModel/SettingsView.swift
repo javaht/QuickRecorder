@@ -173,20 +173,7 @@ struct RecorderView: View {
                     }
                 }
                 SDivider()
-                SItem(label: "Camera Size") {
-                    HStack {
-                        Slider(value: $cameraOverlayWidth, in: 120...480, step: 10)
-                            .frame(width: 140)
-                            .onChange(of: cameraOverlayWidth) { newValue in
-                                AppDelegate.shared.resizeCameraOverlayer(width: newValue)
-                            }
-                        Text("\(Int(cameraOverlayWidth))")
-                            .foregroundStyle(.secondary)
-                            .frame(width: 38, alignment: .trailing)
-                    }
-                }
-                SDivider()
-                SItem(label: "Position") {
+                SItem(label: "Camera Position") {
                     Button((isCameraPreviewVisible ? "Hide Preview" : "Show Preview to Adjust Position").local) {
                         if isCameraPreviewVisible {
                             AppDelegate.shared.closeCamera()
@@ -197,6 +184,19 @@ struct RecorderView: View {
                                 isCameraPreviewVisible = SCContext.isCameraRunning() && camWindow.isVisible
                             }
                         }
+                    }
+                }
+                SDivider()
+                SItem(label: "Camera Size") {
+                    HStack {
+                        Slider(value: $cameraOverlayWidth, in: 120...480, step: 10)
+                            .frame(width: 140)
+                            .onChange(of: cameraOverlayWidth) { newValue in
+                                AppDelegate.shared.resizeCameraOverlayer(width: newValue)
+                            }
+                        Text("\(Int(cameraOverlayWidth))")
+                            .foregroundStyle(.secondary)
+                            .frame(width: 38, alignment: .trailing)
                     }
                 }
             }
